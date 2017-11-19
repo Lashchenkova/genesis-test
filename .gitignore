@@ -1,0 +1,8 @@
+/vendor/
+.idea/
+/build
+/data
+/node_modules
+web/assets/app.min.js
+web/assets/vendor.min.js
+npm-debug.log

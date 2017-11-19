@@ -1,0 +1,16 @@
+{
+    "require": {
+        "silex/silex": "~2.0",
+        "doctrine/dbal": "~2.2",
+        "robmorgan/phinx": "^0.9.1",
+        "fzaninotto/faker": "^1.7",
+        "twig/twig": "^2.4",
+        "symfony/security": "^3.3",
+        "symfony/twig-bridge": "^3.3",
+        "exs/silex-rabbitmq-provider": "@dev"
+    },
+
+    "autoload" : {
+        "psr-4" : {"App\\" : "src/App/"}
+    }
+}
