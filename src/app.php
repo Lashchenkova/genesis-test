@@ -1,21 +1,17 @@
 <?php
 
 use Silex\Application;
-use Silex\Provider\DoctrineServiceProvider;
-use Silex\Provider\TwigServiceProvider;
-use Silex\Provider\ServiceControllerServiceProvider;
-use Silex\Provider\SessionServiceProvider;
 use Symfony\Component\HttpFoundation\Request;
 use App\Services\UserProvider;
 use App\Services\UserService;
 use App\Services\TrackerService;
-use EXS\RabbitmqProvider\Providers\Services\RabbitmqProvider;
 use EXS\RabbitmqProvider\Services\PostmanService;
 use EXS\RabbitmqProvider\Services\ConsumerService;
 use EXS\RabbitmqProvider\Services\AmqpService;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
 use Symfony\Component\Security\Core\User\User;
+use Silex\Component\Security\Http\Token\JWTToken;
 
 /** @var Application $app */
 $app->before(function (Request $request) {
@@ -24,20 +20,6 @@ $app->before(function (Request $request) {
         $request->request->replace(is_array($data) ? $data : []);
     }
 });
-
-$app->register(new RabbitmqProvider());
-
-$app->register(new TwigServiceProvider(), [
-    'twig.path' => __DIR__ . '/../resources/view',
-]);
-
-$app->register(new ServiceControllerServiceProvider());
-
-$app->register(new DoctrineServiceProvider(), [
-    'db.options' => $app['db.options']
-]);
-
-$app->register(new SessionServiceProvider());
 
 $app->get('/', function() use ($app)
 {
@@ -61,23 +43,6 @@ $app->post('/users', function (Request $request) use ($app, $userService) {
 
     return json_encode($result);
 });
-$app['rabbit.connections'] = [
-    'default' => [
-        'host' => 'localhost',
-        'port' => 5672,
-        'user' => 'root',
-        'password' => 'root',
-        'vhost' => '/'
-    ]
-];
-
-// rabbitmq provider environment
-$app['exs.rabbitmq.env'] = [
-    'exchange' => '',
-    'type' => 'fanout',
-    'queue' => '',
-    'key' => ''
-];
 
 $amqp = new AmqpService($app['rabbit.connections']['default'], $app['exs.rabbitmq.env']);
 
@@ -88,6 +53,7 @@ $trackerService = new TrackerService($app['db'], $postmanService, $consumerServi
 
 $app->post('/trackers', function (Request $request) use ($app, $trackerService, $amqp) {
     $event = $request->request->all();
+//    $amqp->amqpConnect();
 
     $trackerService->publish($event);
 //    $result = $trackerService->consume();
@@ -95,37 +61,9 @@ $app->post('/trackers', function (Request $request) use ($app, $trackerService, 
     return json_encode(true);
 });
 
-$app['security.jwt'] = [
-    'secret_key' => 'Very_secret_key',
-    'life_time'  => 86400,
-    'algorithm'  => ['HS256'],
-    'options'    => [
-        'header_name'  => 'Authorization',
-        'token_prefix' => 'Bearer',
-    ]
-];
 $app['users'] = new UserProvider($app['db']);
 
-$app['security.firewalls'] = [
-    'login' => [
-        'pattern' => '^/|login|trackers|save',
-        'logout' => ['logout_path' => '/logout'],
-        'anonymous' => true,
-    ],
-    'secured' => [
-        'pattern' => '^.*$',
-        'logout' => ['logout_path' => '/logout'],
-        'users' => $app['users'],
-        'jwt' => [
-            'use_forward' => true,
-            'require_previous_session' => false,
-            'stateless' => true,
-        ]
-    ],
-];
-
-$app->register(new Silex\Provider\SecurityServiceProvider());
-$app->register(new Silex\Provider\SecurityJWTServiceProvider());
+$app['security.firewalls']['secured']['users'] = $app['users'];
 
 //Authorization
 $app->post('/login', function(Request $request) use ($app, $userService){
@@ -162,7 +100,7 @@ $app->get('/profiles/own', function() use ($app, $userService){
     $jwt = 'no';
     $token = $app['security.token_storage']->getToken();
 
-    if (!$token instanceof Silex\Component\Security\Http\Token\JWTToken) {
+    if (!$token instanceof JWTToken) {
         return $app->json([
             'auth' => $jwt
         ]);
