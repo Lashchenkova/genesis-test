@@ -3,6 +3,7 @@
 docker-compose build;
 docker-compose stop;
 docker-compose -f docker-compose.yml up -d;
+docker-compose exec -T php composer install;
 docker-compose exec -T php npm install;
 docker-compose exec -T php npm run start;
 docker-compose exec -T php vendor/bin/phinx migrate;

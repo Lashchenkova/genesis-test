@@ -1,11 +1,11 @@
 # Genesis Test 
 
 ## Run ./entrypoint.sh
-*_(need to have docker)_
+*(need to have docker)
 
 
-### genesis-test-nginx        127.0.0.1:10050
+_genesis-test-nginx        127.0.0.1:10050_
 
-### genesis-test-phpMyAdmin   127.0.0.1:10500
+_genesis-test-phpMyAdmin   127.0.0.1:10500_
 
-### genesis-test-rabbitmq   127.0.0.1:15672
+_genesis-test-rabbitmq   127.0.0.1:15672_
