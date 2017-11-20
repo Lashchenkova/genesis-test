@@ -61,22 +61,6 @@ $app->post('/users', function (Request $request) use ($app, $userService) {
 
     return json_encode($result);
 });
-
-$amqp = new AmqpService();
-$postmanService = new PostmanService($amqp);
-$consumerService = new ConsumerService($amqp);
-
-$trackerService = new TrackerService($app['db'], $postmanService, $consumerService);
-
-$app->post('/trackers', function (Request $request) use ($app, $trackerService) {
-    $event = $request->request->all();
-
-//    $result = $trackerService->publish($event);
-//    $result = $trackerService->consume();
-
-    return json_encode($event);
-});
-
 $app['rabbit.connections'] = [
     'default' => [
         'host' => 'localhost',
@@ -89,11 +73,27 @@ $app['rabbit.connections'] = [
 
 // rabbitmq provider environment
 $app['exs.rabbitmq.env'] = [
-    'exchange' => 'REPLACE_EXCHANGE_NAME',
-    'type' => 'REPLACE_EXCHANGE_TYPE',
-    'queue' => 'REPLACE_QUEUE_NAME',
-    'key' => 'REPLACE_ROUTING_KEY_NAME'
+    'exchange' => '',
+    'type' => 'fanout',
+    'queue' => '',
+    'key' => ''
 ];
+
+$amqp = new AmqpService($app['rabbit.connections']['default'], $app['exs.rabbitmq.env']);
+
+$postmanService = new PostmanService($amqp);
+$consumerService = new ConsumerService($amqp);
+
+$trackerService = new TrackerService($app['db'], $postmanService, $consumerService);
+
+$app->post('/trackers', function (Request $request) use ($app, $trackerService, $amqp) {
+    $event = $request->request->all();
+
+    $trackerService->publish($event);
+//    $result = $trackerService->consume();
+
+    return json_encode(true);
+});
 
 $app['security.jwt'] = [
     'secret_key' => 'Very_secret_key',

@@ -43,19 +43,19 @@ class TrackerService extends BaseService
      */
     public function publish($event)
     {
-        $this->postman->publish('gggggg', false);
+        $message = json_encode($event);
+        $this->postman->publish($message, false);
     }
 
     /**
      * Get all messages from the queue
-     *
+     * @return void
      */
     public function consume()
     {
         $messages = $this->consumer->consumeAll();
 
-//        $this->db->insert('trackers', $event);
 
-        return $messages;
+//        $this->db->insert('trackers', $events);
     }
 }

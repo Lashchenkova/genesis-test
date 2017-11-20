@@ -33,7 +33,7 @@
                 }
             }
             return {
-                active: 'log'
+                active: 'reg'
             }
         },
         mounted: function () {
