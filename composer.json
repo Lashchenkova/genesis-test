@@ -7,7 +7,8 @@
         "twig/twig": "^2.4",
         "symfony/security": "^3.3",
         "symfony/twig-bridge": "^3.3",
-        "exs/silex-rabbitmq-provider": "@dev"
+        "exs/silex-rabbitmq-provider": "@dev",
+        "cnam/security-jwt-service-provider":"2.*"
     },
 
     "autoload" : {

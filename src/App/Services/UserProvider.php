@@ -21,7 +21,6 @@ class UserProvider extends BaseService implements UserProviderInterface
     public function loadUserByUsername($username)
     {
         $stmt = $this->db->executeQuery('SELECT * FROM users WHERE username = ?', [strtolower($username)]);
-
         if (!$user = $stmt->fetch()) {
             throw new UsernameNotFoundException(sprintf('Username "%s" does not exist.', $username));
         }

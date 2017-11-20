@@ -74,9 +74,9 @@
         },
         methods: {
             logout() {
-                axios.get('/logout').then(() => {
-                    this.$root.$emit('loggedout');
-                });
+                this.$root.$emit('loggedout');
+                localStorage.removeItem('token');
+                localStorage.removeItem('id_user');
             },
             signin() {
                 this.$root.$emit('registered');

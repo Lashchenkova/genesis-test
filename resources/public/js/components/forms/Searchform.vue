@@ -43,19 +43,21 @@
         methods: {
             submit() {
                 let query = {};
+                let token = localStorage.getItem('token');
                 this.formables.forEach(form => {
                     query['query'] = form.value;
                 });
-//                this.$root.$emit('search', search);
                 axios.get('/search?', {
-                    params: query
-                }).then(response => {
-                    this.$root.$emit('search', response.data);
-                });
-            },
-            checkAuth() {
-                let jwt = localStorage.getItem('token');
-                jwt ? this.user.authenticated = true : this.user.authenticated = false;
+                    params: query,
+                    headers: { Authorization: "Bearer " + token }
+
+                })
+                    .then(response => {
+                        this.$root.$emit('search', response.data);
+                    })
+                    .catch(() => {
+                        this.$root.$emit('registered');
+                    });
             },
         }
     }

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use Symfony\Component\Security\Core\Encoder\MessageDigestPasswordEncoder;
 
 /**
  * Class UserService
@@ -28,8 +29,8 @@ class UserService extends BaseService
     public function search(string $query)
     {
         return $this->db->fetchAll(
-            'SELECT * FROM users WHERE username LIKE ? OR firstname LIKE ? OR lastname LIKE ? OR age LIKE ?',
-            ["%" . $query . "%", "%" . $query . "%", "%" . $query . "%", "%" . $query . "%"]
+            'SELECT * FROM users WHERE CONCAT_WS(username, firstname, lastname, age) LIKE ?',
+            ["%" . $query . "%"]
         );
     }
 
@@ -47,6 +48,19 @@ class UserService extends BaseService
     }
 
     /**
+     * Find row by id
+     *
+     * @param string $username
+     * @return int
+     */
+    public function getUserId(string $username)
+    {
+        return (int) $this->db->executeQuery(
+            'SELECT * FROM users WHERE users.username = ?', [$username]
+        )->fetch()['id'];
+    }
+
+    /**
      * Store a new user
      *
      * @param array $user
@@ -59,6 +73,9 @@ class UserService extends BaseService
         if($existingUser){
             return false;
         }
+
+        $encoder = new MessageDigestPasswordEncoder();
+        $user['password'] = $encoder->encodePassword($user['password'], '');
 
         $this->db->insert('users', $user);
 

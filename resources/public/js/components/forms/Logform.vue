@@ -60,21 +60,22 @@
                 this.formables.forEach(form => {
                     credentials[form.name] = form.value;
                 });
-                axios.post('/login_check', credentials).then(response => {
-//                    console.log(response);
-                    if (response.data.length === 2) {
-                        this.formables.forEach(form => {
-                            form.valid = false;
-                        })
-                    } else {
-//                        localStorage.setItem('id_user', response.data.id_user);
-//                        localStorage.setItem('token', response.data.token);
+                axios.post('/login', credentials)
+                    .then(response => {
+                        if (response.data.success) {
+                            localStorage.setItem('id_user', response.data.id);
+                            localStorage.setItem('token', response.data.token);
 
-//                        this.user.authenticated = true;
-
-                        this.$root.$emit('loggedin', credentials);
-                    }
-                });
+                            this.$root.$emit('loggedin', credentials);
+                        } else {
+                            this.formables.forEach(form => {
+                                form.valid = false;
+                            })
+                        }
+                    })
+                    .catch((e) => {
+                        console.log(e.message);
+                    });
             }
         }
     }

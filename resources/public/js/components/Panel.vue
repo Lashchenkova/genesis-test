@@ -27,6 +27,11 @@
             Searchform
         },
         data() {
+            if(localStorage.getItem('token')){
+                return {
+                    active: 'search'
+                }
+            }
             return {
                 active: 'log'
             }

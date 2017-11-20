@@ -3,9 +3,7 @@
 use Silex\Application;
 use Silex\Provider\DoctrineServiceProvider;
 use Silex\Provider\TwigServiceProvider;
-use Silex\Provider\RememberMeServiceProvider;
 use Silex\Provider\ServiceControllerServiceProvider;
-use Silex\Provider\SecurityServiceProvider;
 use Silex\Provider\SessionServiceProvider;
 use Symfony\Component\HttpFoundation\Request;
 use App\Services\UserProvider;
@@ -15,6 +13,9 @@ use EXS\RabbitmqProvider\Providers\Services\RabbitmqProvider;
 use EXS\RabbitmqProvider\Services\PostmanService;
 use EXS\RabbitmqProvider\Services\ConsumerService;
 use EXS\RabbitmqProvider\Services\AmqpService;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
+use Symfony\Component\Security\Core\User\User;
 
 /** @var Application $app */
 $app->before(function (Request $request) {
@@ -38,36 +39,9 @@ $app->register(new DoctrineServiceProvider(), [
 
 $app->register(new SessionServiceProvider());
 
-$app->register(new SecurityServiceProvider(), [
-    'security.firewalls' => [
-        'foo' => array('pattern' => '^/foo'), // Example of an url available as anonymous user
-        'main' => [
-            'pattern' => '^.*$',
-            'anonymous' => true,
-            'form' => [
-                'login_path' => '/',
-                'check_path' => '/login_check',
-            ],
-            'logout' => ['logout_path' => '/logout'],
-            'users' =>function($app) {
-                return new UserProvider($app['db']);
-            },
-        ]
-    ],
-//    'security.access_rules' => [
-//        ['^/.+$', 'IS_AUTHENTICATED_FULLY'],
-//        ['^/foo$', 'IS_AUTHENTICATED_ANONYMOUSLY'],
-//    ]
-]);
-
-$app->register(new RememberMeServiceProvider());
-
-$app->get('/', function(Request $request) use ($app)
+$app->get('/', function() use ($app)
 {
-    return $app['twig']->render('index.twig', [
-        'error'         => $app['security.last_error']($request),
-        'last_username' => $app['session']->get('_security.last_username'),
-    ]);
+    return $app['twig']->render('index.twig');
 });
 
 $userService = new UserService($app['db']);
@@ -103,22 +77,107 @@ $app->post('/trackers', function (Request $request) use ($app, $trackerService) 
     return json_encode($event);
 });
 
-$app['rabbit.connections'] = array(
-    'default' => array(
+$app['rabbit.connections'] = [
+    'default' => [
         'host' => 'localhost',
         'port' => 5672,
         'user' => 'root',
         'password' => 'root',
         'vhost' => '/'
-    )
-);
+    ]
+];
 
 // rabbitmq provider environment
-$app['exs.rabbitmq.env'] = array(
+$app['exs.rabbitmq.env'] = [
     'exchange' => 'REPLACE_EXCHANGE_NAME',
     'type' => 'REPLACE_EXCHANGE_TYPE',
     'queue' => 'REPLACE_QUEUE_NAME',
     'key' => 'REPLACE_ROUTING_KEY_NAME'
-);
+];
+
+$app['security.jwt'] = [
+    'secret_key' => 'Very_secret_key',
+    'life_time'  => 86400,
+    'algorithm'  => ['HS256'],
+    'options'    => [
+        'header_name'  => 'Authorization',
+        'token_prefix' => 'Bearer',
+    ]
+];
+$app['users'] = new UserProvider($app['db']);
+
+$app['security.firewalls'] = [
+    'login' => [
+        'pattern' => '^/|login|trackers|save',
+        'logout' => ['logout_path' => '/logout'],
+        'anonymous' => true,
+    ],
+    'secured' => [
+        'pattern' => '^.*$',
+        'logout' => ['logout_path' => '/logout'],
+        'users' => $app['users'],
+        'jwt' => [
+            'use_forward' => true,
+            'require_previous_session' => false,
+            'stateless' => true,
+        ]
+    ],
+];
+
+$app->register(new Silex\Provider\SecurityServiceProvider());
+$app->register(new Silex\Provider\SecurityJWTServiceProvider());
+
+//Authorization
+$app->post('/login', function(Request $request) use ($app, $userService){
+    $vars = json_decode($request->getContent(), true);
+
+    try {
+        if (empty($vars['_username']) || empty($vars['_password'])) {
+            throw new UsernameNotFoundException(sprintf('Username "%s" does not exist.', $vars['_username']));
+        }
+
+        /** @var $user User */
+        $user = $app['users']->loadUserByUsername($vars['_username']);
+
+        if (! $app['security.encoder.digest']->isPasswordValid($user->getPassword(), $vars['_password'], '')) {
+            throw new UsernameNotFoundException(sprintf('Username "%s" does not exist.', $vars['_username']));
+        } else {
+            $id = $userService->getUserId($user->getUsername());
+            $response = [
+                'success' => true,
+                'token' => $app['security.jwt.encoder']->encode(['name' => $user->getUsername()]),
+                'id' => $id
+            ];
+        }
+    } catch (UsernameNotFoundException $e) {
+        $response = [
+            'success' => false,
+            'error' => 'Invalid credentials',
+        ];
+    }
+    return $app->json($response, ($response['success'] == true ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST));
+});
+
+$app->get('/profiles/own', function() use ($app, $userService){
+    $jwt = 'no';
+    $token = $app['security.token_storage']->getToken();
+
+    if (!$token instanceof Silex\Component\Security\Http\Token\JWTToken) {
+        return $app->json([
+            'auth' => $jwt
+        ]);
+    }
+
+    $jwt = 'yes';
+    $username = $token->getUser()->getUsername();
+    $id = $userService->getUserId($username);
+
+    return $app->json([
+        'hello' => $token->getUsername(),
+        'username' => $username,
+        'auth' => $jwt,
+        'user_id' => $id
+    ]);
+});
 
 return $app;
